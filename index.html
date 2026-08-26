@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NITJ Research Intelligence Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- PapaParse for CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #050816;
+      --bg-alt: #0b1020;
+      --card: #111827;
+      --card-soft: #111827dd;
+      --primary: #4f46e5;
+      --primary-soft: rgba(79, 70, 229, 0.2);
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.18);
+      --danger: #fb7185;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2933;
+      --radius-lg: 16px;
+      --radius-xl: 22px;
+      --shadow-soft: 0 22px 45px rgba(15, 23, 42, 0.7);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, #1d2b64 0, transparent 55%),
+        radial-gradient(circle at top right, #0f172a 0, transparent 55%),
+        radial-gradient(circle at bottom, #111827 0, #020617 65%);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* floating blobs */
+    .blob {
+      position: fixed;
+      width: 300px;
+      height: 300px;
+      border-radius: 999px;
+      filter: blur(80px);
+      opacity: 0.25;
+      z-index: -1;
+      animation: float 18s infinite alternate ease-in-out;
+    }
+    .blob.blob-1 {
+      background: #4f46e5;
+      top: -80px;
+      left: -80px;
+    }
+    .blob.blob-2 {
+      background: #22c55e;
+      bottom: -120px;
+      right: -80px;
+      animation-duration: 26s;
+    }
+
+    @keyframes float {
+      0% { transform: translate3d(0,0,0) scale(1); }
+      100% { transform: translate3d(40px, 40px, 0) scale(1.07); }
+    }
+
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 28px 16px 44px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 18px;
+      background: radial-gradient(circle at 20% 20%, #a855f7, #4f46e5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f9fafb;
+      font-size: 26px;
+      font-weight: 700;
+      box-shadow: var(--shadow-soft);
+      transform: translateY(0);
+      animation: logoFloat 3.5s infinite ease-in-out alternate;
+    }
+
+    @keyframes logoFloat {
+      0% { transform: translateY(0) rotate(0deg); }
+      100% { transform: translateY(-6px) rotate(-3deg); }
+    }
+
+    .brand-text h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .tagline {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      background: rgba(15, 23, 42, 0.65);
+      border-radius: 999px;
+      padding: 3px 9px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      margin-top: 4px;
+    }
+
+    .tagline span {
+      font-size: 8px;
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 30% 0, #22c55e, #16a34a);
+      color: #ecfdf5;
+    }
+
+    .header-right {
+      text-align: right;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      margin-bottom: 5px;
+    }
+
+    .badge-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 10px #22c55e;
+    }
+
+    .tabs {
+      display: inline-flex;
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      padding: 3px;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .tab-btn {
+      border: none;
+      padding: 5px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: var(--muted);
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.18s ease-out;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #4f46e5, #22c55e);
+      color: #f9fafb;
+      box-shadow: 0 0 18px rgba(79, 70, 229, 0.6);
+    }
+
+    /* KPIs */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .kpi-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-xl);
+      padding: 14px 16px 16px;
+      background: radial-gradient(circle at top left, #111827, #020617);
+      border: 1px solid rgba(148, 163, 184, 0.32);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .kpi-card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at top, rgba(79, 70, 229, 0.28), transparent 65%);
+      opacity: 0;
+      transition: opacity 0.25s ease-out;
+    }
+
+    .kpi-card:hover::before {
+      opacity: 1;
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .kpi-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .kpi-chip {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: #e5e7eb;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.2fr);
+      gap: 18px;
+    }
+
+    @media (max-width: 1000px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      .header-right {
+        text-align: left;
+      }
+    }
+
+    .card {
+      background: var(--card-soft);
+      border-radius: 24px;
+      padding: 16px 16px 18px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .card-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+      font-size: 11px;
+    }
+
+    .filters label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      color: var(--muted);
+    }
+
+    .filters select,
+    .filters input {
+      padding: 5px 9px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+      outline: none;
+    }
+
+    .filters button {
+      padding: 6px 12px;
+      font-size: 11px;
+      border-radius: 999px;
+      border: none;
+      background: radial-gradient(circle at 30% 0, #4f46e5, #22c55e);
+      color: #f9fafb;
+      cursor: pointer;
+      box-shadow: 0 12px 30px rgba(34, 197, 94, 0.38);
+      transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+    }
+
+    .filters button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(34, 197, 94, 0.5);
+    }
+
+    /* table */
+    .table-wrapper {
+      max-height: 420px;
+      overflow: auto;
+      margin-top: 6px;
+      border-radius: 18px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: radial-gradient(circle at top, #020617, #020617);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      color: #e5e7eb;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(to right, rgba(15, 23, 42, 0.98), rgba(30, 64, 175, 0.98));
+      z-index: 1;
+    }
+
+    th, td {
+      padding: 7px 9px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+      text-align: left;
+    }
+
+    th {
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 10px;
+      color: #a5b4fc;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(15, 23, 42, 0.85);
+    }
+
+    tbody tr:hover {
+      background: rgba(30, 64, 175, 0.35);
+    }
+
+    .status-pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 9px;
+      background: rgba(22, 163, 74, 0.08);
+      color: #bbf7d0;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
+    .info-text {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .error {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--danger);
+    }
+
+    /* charts */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .chartbox {
+      background: radial-gradient(circle at top, #020617, #020617);
+      border-radius: 18px;
+      padding: 10px 10px 12px;
+      border: 1px solid rgba(30, 64, 175, 0.8);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+    }
+
+    .chartbox h3 {
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #c7d2fe;
+    }
+
+    canvas {
+      max-height: 230px;
+    }
+
+    /* researchers */
+    .researcher-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .researcher-card {
+      position: relative;
+      overflow: hidden;
+      border-radius: 20px;
+      background: radial-gradient(circle at top left, #111827, #020617);
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      padding: 12px 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.18s ease-out, box-shadow 0.18s ease-out;
+    }
+
+    .researcher-card::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background: radial-gradient(circle at top right, rgba(34, 197, 94, 0.35), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.25s ease-out;
+      z-index: 0;
+    }
+
+    .researcher-card:hover {
+      transform: translateY(-4px) scale(1.01);
+      box-shadow: 0 20px 45px rgba(15, 23, 42, 0.9);
+    }
+
+    .researcher-card:hover::before {
+      opacity: 1;
+    }
+
+    .researcher-main {
+      display: flex;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #4f46e5, #22c55e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f9fafb;
+      font-weight: 600;
+      font-size: 20px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .researcher-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .researcher-name {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .researcher-role {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .researcher-meta {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .pill-small {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      font-size: 9px;
+      margin-top: 3px;
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    .taglist {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(30, 64, 175, 0.5);
+      color: #e0f2fe;
+    }
+
+    .researcher-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .chip-outline {
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px dashed rgba(148, 163, 184, 0.7);
+      font-size: 9px;
+    }
+
+    /* floating add researcher button */
+    .fab-add {
+      position: fixed;
+      bottom: 22px;
+      right: 22px;
+      width: 60px;
+      height: 60px;
+      border-radius: 999px;
+      border: none;
+      background: conic-gradient(from 180deg, #22c55e, #4f46e5, #a855f7, #22c55e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #f9fafb;
+      font-size: 32px;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.9);
+      cursor: pointer;
+      transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+      z-index: 100;
+    }
+
+    .fab-add:hover {
+      transform: translateY(-3px) scale(1.05);
+      box-shadow: 0 22px 55px rgba(79, 70, 229, 0.9);
+    }
+
+    .fab-hint {
+      position: fixed;
+      bottom: 30px;
+      right: 92px;
+      font-size: 11px;
+      color: var(--muted);
+      background: rgba(15, 23, 42, 0.92);
+      border-radius: 999px;
+      padding: 4px 9px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      z-index: 90;
+    }
+
+    /* modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 540px;
+      background: radial-gradient(circle at top, #020617, #020617);
+      border-radius: 22px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      box-shadow: var(--shadow-soft);
+      padding: 16px 18px 18px;
+      color: var(--text);
+      position: relative;
+      animation: popIn 0.2s ease-out;
+    }
+
+    @keyframes popIn {
+      from { transform: translateY(10px) scale(0.96); opacity: 0; }
+      to { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .modal-close {
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+
+    .modal form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px 10px;
+      font-size: 11px;
+    }
+
+    .modal label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      color: var(--muted);
+    }
+
+    .modal input,
+    .modal textarea {
+      padding: 5px 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text);
+      font-size: 11px;
+      outline: none;
+    }
+
+    .modal textarea {
+      resize: vertical;
+      min-height: 50px;
+    }
+
+    .modal .full-span {
+      grid-column: 1 / -1;
+    }
+
+    .modal-actions {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn-secondary {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: transparent;
+      color: var(--muted);
+      padding: 5px 10px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      border-radius: 999px;
+      border: none;
+      background: radial-gradient(circle at 30% 0, #4f46e5, #22c55e);
+      color: #f9fafb;
+      padding: 6px 13px;
+      font-size: 11px;
+      cursor: pointer;
+      box-shadow: 0 14px 32px rgba(34, 197, 94, 0.4);
+    }
+
+    .modal-hint {
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="page">
+    <header>
+      <div class="brand">
+        <div class="brand-logo">R</div>
+        <div class="brand-text">
+          <h1>NITJ Research Intelligence</h1>
+          <p>Rich, interactive view of research projects & investigators</p>
+          <div class="tagline">
+            <span>◎</span> CSV powered • Visual analytics • Researcher registry
+          </div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="badge">
+          <div class="badge-dot"></div>
+          <span id="loadStatus">Loading CSV...</span>
+        </div>
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="projects">Projects</button>
+          <button class="tab-btn" data-tab="researchers">Researchers</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- KPIs -->
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Projects</div>
+        <div class="kpi-value" id="kpiTotal">-</div>
+        <div class="kpi-sub" id="kpiYears"></div>
+        <div class="kpi-chip">Portfolio size</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Departments Active</div>
+        <div class="kpi-value" id="kpiDepts">-</div>
+        <div class="kpi-sub" id="kpiTopDept"></div>
+        <div class="kpi-chip">Breadth</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Funding Agencies</div>
+        <div class="kpi-value" id="kpiAgencies">-</div>
+        <div class="kpi-sub" id="kpiTopAgency"></div>
+        <div class="kpi-chip">Collaboration</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Funding (approx.)</div>
+        <div class="kpi-value" id="kpiFunding">₹-</div>
+        <div class="kpi-sub">(Uses numeric Amount column only)</div>
+        <div class="kpi-chip">Scale</div>
+      </div>
+    </section>
+
+    <!-- Projects layout -->
+    <section id="tab-projects" class="tab-content">
+      <section class="layout">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Research Projects</div>
+              <div class="card-sub">Filter, search and explore the active project portfolio.</div>
+            </div>
+          </div>
+
+          <div class="filters">
+            <label>
+              Department
+              <select id="filterDept">
+                <option value="">All</option>
+              </select>
+            </label>
+            <label>
+              Funding Agency
+              <select id="filterAgency">
+                <option value="">All</option>
+              </select>
+            </label>
+            <label>
+              Search
+              <input type="text" id="searchBox" placeholder="Project, PI, keyword..." />
+            </label>
+            <button id="clearFiltersBtn">Reset</button>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Project</th>
+                  <th>Dept</th>
+                  <th>PI</th>
+                  <th>Funding Agency</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="projectsBody">
+                <!-- rows injected -->
+              </tbody>
+            </table>
+          </div>
+          <div class="info-text" id="tableInfo"></div>
+          <div class="error" id="errorMsg"></div>
+        </section>
+
+        <section>
+          <div class="charts-grid">
+            <div class="chartbox">
+              <h3>Projects by Department</h3>
+              <canvas id="chartDeptCount"></canvas>
+            </div>
+            <div class="chartbox">
+              <h3>Estimated Funding by Department (₹ in Millions)</h3>
+              <canvas id="chartDeptFunding"></canvas>
+            </div>
+            <div class="chartbox">
+              <h3>Projects by Start Year</h3>
+              <canvas id="chartYearCount"></canvas>
+            </div>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <!-- Researchers layout -->
+    <section id="tab-researchers" class="tab-content" style="display:none;">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Principal Investigators & Mentors</div>
+            <div class="card-sub">Auto-generated from project data. Add custom researchers with photos.</div>
+          </div>
+          <div class="card-sub" id="researcherInfo"></div>
+        </div>
+        <div class="researcher-grid" id="researcherGrid">
+          <!-- cards injected -->
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <!-- Floating Add Researcher Button -->
+  <div class="fab-hint">Add researcher</div>
+  <button class="fab-add" id="fabAdd">+</button>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Add Researcher</div>
+          <div class="modal-hint">This is client-side only (page reload will reset the added data).</div>
+        </div>
+        <button class="modal-close" id="modalClose">&times;</button>
+      </div>
+
+      <form id="researcherForm">
+        <label class="full-span">
+          Name
+          <input type="text" id="rName" required />
+        </label>
+        <label>
+          Department
+          <input type="text" id="rDept" placeholder="e.g. BT, CE, CSE" />
+        </label>
+        <label>
+          Role
+          <input type="text" id="rRole" placeholder="Professor / PI / Mentor" />
+        </label>
+        <label>
+          Image URL
+          <input type="url" id="rImageUrl" placeholder="https://..." />
+        </label>
+        <label>
+          Local Image
+          <input type="file" id="rImageFile" accept="image/*" />
+        </label>
+        <label>
+          Email
+          <input type="email" id="rEmail" placeholder="optional" />
+        </label>
+        <label class="full-span">
+          Research Areas (comma-separated)
+          <input type="text" id="rAreas" placeholder="AI in healthcare, Smart grids..." />
+        </label>
+        <label>
+          Projects Count
+          <input type="number" id="rProjects" min="0" placeholder="auto or custom" />
+        </label>
+        <label>
+          Approx. Funding (₹)
+          <input type="number" id="rFunding" min="0" placeholder="e.g. 5000000" />
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="modalCancel">Cancel</button>
+          <button type="submit" class="btn-primary">Add Researcher</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const CSV_FILE = "nitj_projects.csv"; // yahi naam rakho
+
+    let rawData = [];
+    let filteredData = [];
+    let researchers = []; // from CSV + user added
+
+    let deptCountChart, deptFundingChart, yearCountChart;
+
+    function parseAmount(value) {
+      if (!value) return 0;
+      const cleaned = String(value).replace(/[,₹]/g, "").trim();
+      const num = parseFloat(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+
+    function extractYear(value) {
+      if (!value) return null;
+      const s = String(value);
+      const match = s.match(/\d{4}/);
+      return match ? match[0] : null;
+    }
+
+    function loadCSV() {
+      Papa.parse(CSV_FILE, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function (results) {
+          rawData = results.data;
+          filteredData = rawData.slice();
+          document.getElementById("loadStatus").textContent = "Data synced from CSV ✓";
+          initFilters();
+          renderTable();
+          updateKPIs();
+          drawCharts();
+          buildResearchersFromProjects();
+          renderResearchers();
+        },
+        error: function (err) {
+          document.getElementById("loadStatus").textContent = "Failed to load CSV ✕";
+          document.getElementById("errorMsg").textContent = "Error: " + err.message;
+        }
+      });
+    }
+
+    function initFilters() {
+      const deptSelect = document.getElementById("filterDept");
+      const agencySelect = document.getElementById("filterAgency");
+
+      const depts = [...new Set(rawData.map(r => r["Department"]).filter(Boolean))].sort();
+      const agencies = [...new Set(rawData.map(r => r["Funding Agency"]).filter(Boolean))].sort();
+
+      depts.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        deptSelect.appendChild(opt);
+      });
+
+      agencies.forEach(a => {
+        const opt = document.createElement("option");
+        opt.value = a;
+        opt.textContent = a;
+        agencySelect.appendChild(opt);
+      });
+
+      deptSelect.addEventListener("change", applyFilters);
+      agencySelect.addEventListener("change", applyFilters);
+      document.getElementById("searchBox").addEventListener("input", applyFilters);
+      document.getElementById("clearFiltersBtn").addEventListener("click", () => {
+        deptSelect.value = "";
+        agencySelect.value = "";
+        document.getElementById("searchBox").value = "";
+        applyFilters();
+      });
+    }
+
+    function applyFilters() {
+      const dept = document.getElementById("filterDept").value;
+      const agency = document.getElementById("filterAgency").value;
+      const q = document.getElementById("searchBox").value.toLowerCase().trim();
+
+      filteredData = rawData.filter(row => {
+        if (dept && row["Department"] !== dept) return false;
+        if (agency && row["Funding Agency"] !== agency) return false;
+
+        if (q) {
+          const haystack = (
+            (row["Project Name"] || "") + " " +
+            (row["PI / Main Contact"] || "") + " " +
+            (row["Funding Agency"] || "") + " " +
+            (row["Department"] || "")
+          ).toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      });
+
+      renderTable();
+      updateKPIs();
+      drawCharts();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById("projectsBody");
+      tbody.innerHTML = "";
+
+      filteredData.forEach(row => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${row["S.No."] || ""}</td>
+          <td>${row["Project Name"] || ""}</td>
+          <td>${row["Department"] || ""}</td>
+          <td>${row["PI / Main Contact"] || ""}</td>
+          <td>${row["Funding Agency"] || ""}</td>
+          <td>${row["From"] || ""}</td>
+          <td>${row["To"] || ""}</td>
+          <td>${row["Amount (Rs.)"] || ""}</td>
+          <td>${row["Status"] ? `<span class="status-pill">${row["Status"]}</span>` : ""}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById("tableInfo").textContent =
+        `Showing ${filteredData.length} of ${rawData.length} projects`;
+    }
+
+    function updateKPIs() {
+      const total = filteredData.length;
+      document.getElementById("kpiTotal").textContent = total;
+
+      const years = filteredData
+        .map(r => extractYear(r["From"]))
+        .filter(Boolean);
+      const uniqYears = [...new Set(years)].sort();
+      if (uniqYears.length) {
+        document.getElementById("kpiYears").textContent =
+          `From ${uniqYears[0]} to ${uniqYears[uniqYears.length - 1]}`;
+      } else {
+        document.getElementById("kpiYears").textContent = "";
+      }
+
+      const deptCounts = {};
+      filteredData.forEach(r => {
+        const d = r["Department"] || "Unknown";
+        deptCounts[d] = (deptCounts[d] || 0) + 1;
+      });
+      const deptNames = Object.keys(deptCounts);
+      document.getElementById("kpiDepts").textContent = deptNames.length;
+      if (deptNames.length) {
+        const topDept = deptNames.sort((a, b) => deptCounts[b] - deptCounts[a])[0];
+        document.getElementById("kpiTopDept").textContent =
+          `Most projects: ${topDept} (${deptCounts[topDept]})`;
+      } else {
+        document.getElementById("kpiTopDept").textContent = "";
+      }
+
+      const agencyCounts = {};
+      filteredData.forEach(r => {
+        const a = r["Funding Agency"] || "Unknown";
+        agencyCounts[a] = (agencyCounts[a] || 0) + 1;
+      });
+      const agencyNames = Object.keys(agencyCounts);
+      document.getElementById("kpiAgencies").textContent = agencyNames.length;
+      if (agencyNames.length) {
+        const topAgency = agencyNames.sort((a, b) => agencyCounts[b] - agencyCounts[a])[0];
+        document.getElementById("kpiTopAgency").textContent =
+          `Top agency: ${topAgency}`;
+      } else {
+        document.getElementById("kpiTopAgency").textContent = "";
+      }
+
+      let totalFunding = 0;
+      filteredData.forEach(r => {
+        totalFunding += parseAmount(r["Amount (Rs.)"]);
+      });
+      let display;
+      if (totalFunding >= 1e7) {
+        display = (totalFunding / 1e7).toFixed(2) + " Cr";
+      } else if (totalFunding >= 1e5) {
+        display = (totalFunding / 1e5).toFixed(1) + " Lakh";
+      } else {
+        display = totalFunding.toLocaleString("en-IN");
+      }
+      document.getElementById("kpiFunding").textContent = "₹" + display;
+    }
+
+    function destroyChart(chart) { if (chart) chart.destroy(); }
+
+    function drawCharts() {
+      const ctxDeptCount = document.getElementById("chartDeptCount").getContext("2d");
+      const ctxDeptFunding = document.getElementById("chartDeptFunding").getContext("2d");
+      const ctxYearCount = document.getElementById("chartYearCount").getContext("2d");
+
+      const deptCounts = {};
+      const deptFunding = {};
+      const yearCounts = {};
+
+      filteredData.forEach(r => {
+        const d = r["Department"] || "Unknown";
+        deptCounts[d] = (deptCounts[d] || 0) + 1;
+        const amt = parseAmount(r["Amount (Rs.)"]);
+        deptFunding[d] = (deptFunding[d] || 0) + amt;
+
+        const y = extractYear(r["From"]);
+        if (y) yearCounts[y] = (yearCounts[y] || 0) + 1;
+      });
+
+      const deptLabels = Object.keys(deptCounts).sort();
+      const deptValues = deptLabels.map(d => deptCounts[d]);
+
+      const deptFundingLabels = Object.keys(deptFunding).sort();
+      const deptFundingValues = deptFundingLabels.map(d => deptFunding[d] / 1e6);
+
+      const yearLabels = Object.keys(yearCounts).sort();
+      const yearValues = yearLabels.map(y => yearCounts[y]);
+
+      destroyChart(deptCountChart);
+      destroyChart(deptFundingChart);
+      destroyChart(yearCountChart);
+
+      deptCountChart = new Chart(ctxDeptCount, {
+        type: "bar",
+        data: {
+          labels: deptLabels,
+          datasets: [{
+            label: "Projects",
+            data: deptValues,
+            backgroundColor: "rgba(79, 70, 229, 0.75)",
+            borderColor: "#6366f1",
+            borderWidth: 1.5
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#9ca3af", font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: "#9ca3af", font: { size: 10 } }, grid: { color: "#1f2937" }, beginAtZero: true }
+          }
+        }
+      });
+
+      deptFundingChart = new Chart(ctxDeptFunding, {
+        type: "bar",
+        data: {
+          labels: deptFundingLabels,
+          datasets: [{
+            label: "Funding (Millions)",
+            data: deptFundingValues,
+            backgroundColor: "rgba(34, 197, 94, 0.7)",
+            borderColor: "#22c55e",
+            borderWidth: 1.5
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#9ca3af", font: { size: 10 } }, grid: { display: false } },
+            y: { ticks: { color: "#9ca3af", font: { size: 10 } }, grid: { color: "#1f2937" }, beginAtZero: true }
+          }
+        }
+      });
+
+      yearCountChart = new Chart(ctxYearCount, {
+        type: "line",
+        data: {
+          labels: yearLabels,
+          datasets: [{
+            label: "Projects started",
+            data: yearValues,
+            borderColor: "#f97316",
+            backgroundColor: "rgba(249, 115, 22, 0.4)",
+            borderWidth: 2,
+            tension: 0.35,
+            pointRadius: 3,
+            pointHoverRadius: 5
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#9ca3af", font: { size: 10 } }, grid: { color: "#020617" } },
+            y: { ticks: { color: "#9ca3af", font: { size: 10 } }, grid: { color: "#1f2937" }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // --- Researchers ---
+
+    function buildResearchersFromProjects() {
+      const map = new Map();
+
+      rawData.forEach(row => {
+        const name = (row["PI / Main Contact"] || "").trim();
+        if (!name) return;
+
+        const dept = row["Department"] || "Unknown";
+        const amt = parseAmount(row["Amount (Rs.)"]);
+        const key = name + "||" + dept;
+
+        if (!map.has(key)) {
+          map.set(key, {
+            name,
+            dept,
+            role: "Principal Investigator",
+            email: "",
+            areas: new Set(),
+            projects: 0,
+            funding: 0,
+            image: null
+          });
+        }
+        const obj = map.get(key);
+        obj.projects += 1;
+        obj.funding += amt;
+        obj.areas.add((row["Project Name"] || "").slice(0, 80));
+      });
+
+      researchers = Array.from(map.values()).map(r => ({
+        ...r,
+        areas: Array.from(r.areas).filter(Boolean)
+      }));
+    }
+
+    function initialsFromName(name) {
+      if (!name) return "?";
+      const parts = name.split(" ").filter(Boolean);
+      if (parts.length === 1) return parts[0][0].toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+
+    function renderResearchers() {
+      const grid = document.getElementById("researcherGrid");
+      grid.innerHTML = "";
+
+      researchers.sort((a, b) => b.projects - a.projects);
+
+      researchers.forEach(r => {
+        const card = document.createElement("article");
+        card.className = "researcher-card";
+
+        const fundingDisplay = r.funding
+          ? (r.funding >= 1e7
+              ? (r.funding / 1e7).toFixed(2) + " Cr"
+              : (r.funding / 1e5).toFixed(1) + " Lakh")
+          : "N/A";
+
+        card.innerHTML = `
+          <div class="researcher-main">
+            <div class="avatar">
+              ${r.image ? `<img src="${r.image}" alt="${r.name}"/>` : initialsFromName(r.name)}
+            </div>
+            <div class="researcher-info">
+              <div class="researcher-name">${r.name}</div>
+              <div class="researcher-role">${r.role}${r.dept ? " • " + r.dept : ""}</div>
+              <div class="researcher-meta">
+                ${r.email ? r.email + " • " : ""}Projects: ${r.projects || 0}
+              </div>
+              <div class="pill-small">
+                <span class="pill-dot"></span>
+                Funding: ${fundingDisplay}
+              </div>
+              <div class="taglist">
+                ${r.areas.slice(0, 3).map(a => `<span class="tag">${a}</span>`).join("")}
+              </div>
+            </div>
+          </div>
+          <div class="researcher-footer">
+            <span class="chip-outline">${r.dept || "Department N/A"}</span>
+            <span>${r.projects || 0} project(s)</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+
+      document.getElementById("researcherInfo").textContent =
+        `${researchers.length} researchers (auto + added)`;
+    }
+
+    // --- Add researcher modal ---
+
+    const fabAdd = document.getElementById("fabAdd");
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const modalClose = document.getElementById("modalClose");
+    const modalCancel = document.getElementById("modalCancel");
+    const researcherForm = document.getElementById("researcherForm");
+    const imageFileInput = document.getElementById("rImageFile");
+
+    function openModal() {
+      modalBackdrop.style.display = "flex";
+    }
+    function closeModal() {
+      modalBackdrop.style.display = "none";
+      researcherForm.reset();
+    }
+
+    fabAdd.addEventListener("click", openModal);
+    modalClose.addEventListener("click", closeModal);
+    modalCancel.addEventListener("click", closeModal);
+    modalBackdrop.addEventListener("click", (e) => {
+      if (e.target === modalBackdrop) closeModal();
+    });
+
+    researcherForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById("rName").value.trim();
+      const dept = document.getElementById("rDept").value.trim();
+      const role = document.getElementById("rRole").value.trim() || "Researcher";
+      const imageUrl = document.getElementById("rImageUrl").value.trim();
+      const email = document.getElementById("rEmail").value.trim();
+      const areasStr = document.getElementById("rAreas").value.trim();
+      const projectsCount = parseInt(document.getElementById("rProjects").value, 10) || 0;
+      const fundingVal = parseFloat(document.getElementById("rFunding").value) || 0;
+
+      const areas = areasStr ? areasStr.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+      const baseData = {
+        name,
+        dept,
+        role,
+        email,
+        areas,
+        projects: projectsCount,
+        funding: fundingVal,
+        image: imageUrl || null
+      };
+
+      // If user uploaded local file, use that with FileReader
+      if (imageFileInput.files && imageFileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (evt) {
+          baseData.image = evt.target.result;
+          researchers.unshift(baseData);
+          renderResearchers();
+          closeModal();
+        };
+        reader.readAsDataURL(imageFileInput.files[0]);
+      } else {
+        researchers.unshift(baseData);
+        renderResearchers();
+        closeModal();
+      }
+    });
+
+    // Tabs switch
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        const tab = btn.dataset.tab;
+        document.getElementById("tab-projects").style.display = tab === "projects" ? "" : "none";
+        document.getElementById("tab-researchers").style.display = tab === "researchers" ? "" : "none";
+      });
+    });
+
+    // kick off
+    loadCSV();
+  </script>
+</body>
+</html>
